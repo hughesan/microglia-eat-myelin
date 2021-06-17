@@ -1,0 +1,126 @@
+---
+title: "mic-depl-mbpa-counts"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+mbpa_depl <- read_csv('mic-depl-mbpacounts.csv')
+View(mbpa_depl)
+```
+
+```{r}
+mbpa_depl %>% group_by(group) %>% summarize(n_fish = n(), n_ols = sum(dorsal) + sum (ventral))
+```
+```{r}
+mbpa_depl <- mbpa_depl %>%  mutate("pair_group" =
+                       case_when(
+                           group == "sib_dmso" ~ "NTR-",
+                            group == "sib_mtz" ~ "NTR-", 
+                           group == "ntr_dmso" ~ "NTR+",
+                            group == "ntr_mtz" ~ "NTR+",
+                           group == "ctrl_MO" ~ "Irf8 MO",
+                           group == "Irf8_MO" ~ "Irf8 MO",
+                           group == "DMSO_gw" ~ "GW2580",
+                           group == "GW2580" ~ "GW2580")) %>%
+ mutate("group_names_for_facet" =
+           case_when(
+             group == "sib_dmso" ~ "DMSO",
+             group == "sib_mtz" ~ "Mtz",
+             group == "ntr_dmso" ~ "DMSO",
+             group == "ntr_mtz" ~ "Mtz",
+             group == "ctrl_MO" ~ "Ctrl",
+             group == "Irf8_MO" ~ "Irf8 MO",
+             group == "DMSO_gw" ~ "DMSO",
+             group == "GW2580" ~ "GW2580")) %>%
+  mutate("total_mbpa" = dorsal + ventral) %>%
+  mutate("dv_ratio" = dorsal / ventral)
+```
+
+
+
+```{r}
+mbpa_depl$pair_group <- mbpa_depl$pair_group %>% fct_relevel("Irf8 MO", "GW2580", "NTR-", "NTR+")
+```
+
+```{r}
+mbpa_depl$group <- mbpa_depl$group %>% fct_relevel("sib_dmso", "sib_mtz", "ntr_dmso", "ntr_mtz", "DMSO_gw", "GW2580", "ctrl_MO", "Irf8_MO")
+```
+
+total mbpa cells, pretty graph w/facets then stats graph below (could not get stats to print on faceted graph so generated separately and pasted on) 
+```{r}
+depl_comparisons <- list(c("sib_dmso", "sib_mtz"), c("ntr_dmso", "ntr_mtz"), c("DMSO_gw", "GW2580"), c("ctrl_MO", "Irf8_MO"))
+
+ggplot(mbpa_depl, aes(x=group_names_for_facet, y=total_mbpa, fill=group))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  
+  labs(x= " ", y="mbpa+ cells / 3.5 hemisegments")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  #stat_compare_means(inherit.aes=FALSE, aes(x=group, y=total_mbpa), method="wilcox.test", label="p.format", comparisons = depl_comparisons)+
+  facet_grid(.~pair_group, scales = "free")+
+  ylim(15, 50)
+#ggsave('mbpa-number-depletion.png', dpi=300, height=4.5, width=6.75)
+
+```
+
+```{r}
+ggplot(mbpa_depl, aes(x=group, y=total_mbpa, fill=group))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  
+  labs(x= " ", y="Neutral red # / tectum")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  stat_compare_means(inherit.aes=FALSE, aes(x=group, y=total_mbpa), method="wilcox.test", label="p.format", comparisons = depl_comparisons)
+```
+
+now dorsal-ventral ratio, pretty graph then stats graph
+```{r}
+depl_comparisons <- list(c("sib_dmso", "sib_mtz"), c("ntr_dmso", "ntr_mtz"), c("DMSO_gw", "GW2580"), c("ctrl_MO", "Irf8_MO"))
+
+ggplot(mbpa_depl, aes(x=group_names_for_facet, y=dv_ratio, fill=group))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  
+  labs(x= " ", y="dorsal / ventral ratio")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  #stat_compare_means(inherit.aes=FALSE, aes(x=group, y=total_mbpa), method="wilcox.test", label="p.format", comparisons = depl_comparisons)+
+  facet_grid(.~pair_group, scales = "free")+
+  ylim(0.1, 0.75)
+#ggsave('dorsal_ventral_mbpa_depletion.png', dpi=300, height=4.5, width=6.75)
+```
+
+```{r}
+ggplot(mbpa_depl, aes(x=group, y=dv_ratio, fill=group))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  
+  labs(x= " ", y="dv")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  stat_compare_means(inherit.aes=FALSE, aes(x=group, y=dv_ratio), method="wilcox.test", label="p.format", comparisons = depl_comparisons)
+```
+
+

@@ -1,0 +1,95 @@
+---
+title: "ablation neutral red"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+ablation_nr <- read_csv('ablation_neutralred.csv')
+#View(ablation_nr)
+```
+
+```{r}
+ablation_nr %>% group_by(group) %>% summarize(tot_fish = n(), tot_mic = sum(n_microglia))
+```
+
+```{r}
+ablation_nr <- ablation_nr %>%  mutate("pair_group" =
+                       case_when(
+                           group == "sib_dmso" ~ "NTR-",
+                            group == "sib_mtz" ~ "NTR-", 
+                           group == "ntr_dmso" ~ "NTR+",
+                            group == "ntr_mtz" ~ "NTR+",
+                           group == "ctrl_MO" ~ "Irf8 MO",
+                           group == "Irf8_MO" ~ "Irf8 MO",
+                           group == "DMSO_gw" ~ "GW2580",
+                           group == "GW2580" ~ "GW2580")) %>%
+ mutate("group_names_for_facet" =
+           case_when(
+             group == "sib_dmso" ~ "DMSO",
+             group == "sib_mtz" ~ "Mtz",
+             group == "ntr_dmso" ~ "DMSO",
+             group == "ntr_mtz" ~ "Mtz",
+             group == "ctrl_MO" ~ "Ctrl",
+             group == "Irf8_MO" ~ "Irf8 MO",
+             group == "DMSO_gw" ~ "DMSO",
+             group == "GW2580" ~ "GW2580"))
+```
+
+
+
+```{r}
+ablation_nr$pair_group <- ablation_nr$pair_group %>% fct_relevel("Irf8 MO", "GW2580", "NTR-", "NTR+")
+```
+
+```{r}
+ablation_nr$group <- ablation_nr$group %>% fct_relevel("sib_dmso", "sib_mtz", "ntr_dmso", "ntr_mtz", "DMSO_gw", "GW2580", "ctrl_MO", "Irf8_MO")
+```
+
+
+```{r}
+ab_comparisons <- list(c("sib_dmso", "sib_mtz"), c("ntr_dmso", "ntr_mtz"), c("DMSO_gw", "GW2580"), c("ctrl_MO", "Irf8_MO"))
+
+ggplot(ablation_nr, aes(x=group_names_for_facet, y=n_microglia, fill=group))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  
+  labs(x= " ", y="Neutral red # / tectum")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  #stat_compare_means(inherit.aes=FALSE, aes(x=group, y=n_sheaths), method="wilcox.test", label="p.format", comparisons = ab_comparisons)+
+  facet_grid(.~pair_group, scales = "free")+
+  ylim(0, 45)
+#ggsave('ablation-neutral-red.png', dpi=300, width=6.5, height=4.5)
+```
+
+```{r}
+ab_comparisons <- list(c("sib_dmso", "sib_mtz"), c("ntr_dmso", "ntr_mtz"), c("DMSO_gw", "GW2580"), c("ctrl_MO", "Irf8_MO"))
+
+ggplot(ablation_nr, aes(x=group, y=n_microglia, fill=group))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  
+  labs(x= " ", y="Neutral red # / tectum")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  stat_compare_means(inherit.aes=FALSE, aes(x=group, y=n_sheaths), method="wilcox.test", label="p.format", comparisons = ab_comparisons)
+```
+

@@ -1,0 +1,75 @@
+---
+title: "Microglia-neuron contacts in optic tectum (dnVamp2, BoNT/B)"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+contact_activity <- read_csv('bfp-bonts-dnvamp2-microglia-contact-tidy.csv')
+View(contact_activity)
+```
+
+```{r}
+contact_activity <- contact_activity %>% mutate(fraction_contacted = n_cont_neurons / n_neurons) %>% mutate(fract_cont_mic_norm = n_cont_neurons/n_neurons/n_microglia)
+```
+
+```{r}
+contact_activity$fluor <- contact_activity$fluor %>% fct_relevel("mTagBFP-CAAX","-2A-dnVamp2", "-2A-BoNT/B")
+```
+
+
+for multiple comparisons
+```{r}
+multcompscontact <- compare_means(data=contact_activity, fraction_contacted~fluor, method = "wilcox.test", p.adjust.method = "holm") 
+statsize<-5
+multcompscontact
+```
+
+PLOT: fraction of labeled neurons contacted by microglia
+```{r} 
+
+ggplot(contact_activity, aes(x=fluor, y=fraction_contacted))+
+  geom_violin(aes(x=fluor, y=fraction_contacted), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.23, height=0.025, shape=21, size=6, alpha=0.75, fill="#FFC5FF")+
+  scale_fill_manual(values= c("#FFC5FF", "#FFC5FF", "#FFC5FF"))+
+
+  stat_pvalue_manual(multcompscontact, size=statsize, y.position = c(.8,.7,.6))+ #calls stats from previous chunk (mult comp)
+  
+  theme(legend.position = "none")+
+  labs(x = " ", y= "Fraction of neurons contacted")
+#ggsave('fraction-contacted.png', dpi=300, width=6.5, height=4.5)
+```
+
+PLOT: number mic per tectal FOV
+```{r}
+ggplot(contact_activity, aes(x=fluor, y=n_microglia, fill=fluor))+
+  geom_violin(aes(x=fluor, y=n_microglia), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.225, height=0.05, shape=21, size=6, alpha=0.75)+
+  scale_fill_manual(values= c("#FFC5FF", "#FFC5FF", "#FFC5FF"))+
+  stat_compare_means(inherit.aes=FALSE, aes(x=fluor, y=n_microglia), method = "kruskal.test", label = "p.signif", label.x=1.975, label.y=11, size=5.5)+
+  theme(legend.position = "none")+
+  labs(x = " ", y= "Microglia / lateral tectum")
+#ggsave('microglia-per-tectum.png', dpi=300, width=6.5, height=4.5)
+```
+
+summary stats
+```{r}
+contact_activity %>% group_by(fluor) %>% summarize(sum_neurons = sum(n_neurons), sum_mg = sum(n_microglia))
+```
+

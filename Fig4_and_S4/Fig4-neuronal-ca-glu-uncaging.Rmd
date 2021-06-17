@@ -1,0 +1,118 @@
+---
+title: "neuronal glu uncaging (neurod:gcamp6s)"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+neuroglu <- read_csv('neuronal-glu-unc-tidy.csv')
+View(neuroglu)
+```
+
+```{r}
+neuroglu %>% filter(neuron_id == 1) %>% group_by(group) %>%  summarize(tot_fish = n())
+```
+
+```{r}
+neuroglu %>% group_by(group, transient) %>% summarize(n_neurons = n())
+```
+
+pretty axis breaks
+```{r}
+neuroglu2 <- neuroglu %>% mutate(neuroglu_cut = cut(neuroglu$distance, breaks = c(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170)))
+```
+
+Spread transient into two columns with n_neurons as value
+```{r}
+neuroglu2 <- neuroglu2 %>% group_by(neuroglu_cut, group, transient) %>% summarise(n_neurons = n()) %>% spread(transient, n_neurons) %>% replace_na(list(no = 0, yes = 0))
+```
+
+
+```{r}
+neuroglu_ratio <- neuroglu2 %>% mutate(event_ratio = yes/no)
+```
+
+```{r}
+ggplot(neuroglu_ratio, aes(x=neuroglu_cut, y=event_ratio, fill=group))+
+  geom_histogram(binwidth=10, stat="identity", position="dodge", color="black")+
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D"))+
+  labs(x="Distance (um)", y="GCaMP6s response ratio", fill = "Uncaging group")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = c(0.6, 0.75))
+#ggsave('neuro-glu-unc-histogram.png', dpi=300, width=6.5, height=4.5)
+```
+
+```{r}
+neuroglu <- neuroglu %>% mutate("Transient2"=
+                      case_when(
+                        transient == "yes" ~ "Transient",
+                        transient == "no" ~ "No transient"))
+                  
+```
+
+
+```{r}
+ggplot(neuroglu, aes(x=Transient2, y=distance, fill=Transient2))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=5)+
+  geom_boxplot(alpha=0.5)+
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D"))+
+  facet_grid(.~group)+
+  stat_compare_means(inherit.aes=FALSE, aes(x=Transient2, y=distance), method="wilcox.test", label = "p.format", size=5, label.x=1.3)+
+  #theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  theme(legend.position = "none")+
+  ylim(0, 180)+
+  labs(x=" ", y="Distance (um)")
+#ggsave('neuro-glu-facet-boxplot.png', dpi=300, width=6, height=4.5)
+```
+
+This is an example using ROIs placed on 4 cells of variable dist from uncaging point
+```{r}
+transients <- read_csv('ca_trans_tidy_example.csv')
+View(transients)
+```
+
+```{r}
+transients_long<- transients %>% gather(cells=cell1, cells=cell2, cells=cell3, cells=cellfar)
+```
+
+```{r}
+transients_long<- transients_long %>% mutate("cell_groups"=
+                             case_when(
+                               key == "cell1" ~ "Cell #1",
+                               key == "cell2" ~ "Cell #2",
+                               key == "cell3" ~ "Cell #3",
+                               key == "cellfar" ~ "Cell #4 (distant)"))
+```
+
+
+```{r}
+ggplot(transients_long, aes(x=time_s, y=value, color=cell_groups))+
+  #geom_line(size=1.25)+
+  labs(x="Time (s)", y="dF/F", color=" ")+
+  theme(legend.position = "top")+
+  scale_color_manual(values = c( "#FFC5FF", "#E3C22D",  "#CEA0F9", "#14b5d0"))+
+  geom_smooth(span=0.1, se=FALSE, size=1.1)+
+  #geom_vline(xintercept=1.18, linetype="dashed")+
+  geom_segment(aes(x=1.18, y=-0.75, xend=1.18, yend=5), color="black", size=2, linetype="dotted", data=transients_long)+
+  annotate("text", label = "Uncage", x = 1.18, y = 5.5, size = 5.5, colour = "black")
+#ggsave('glu-ca-transients-example.png', dpi=300, width=6.5, height=4.5)
+```
+
+
+
+
+

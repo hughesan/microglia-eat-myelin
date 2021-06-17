@@ -39,7 +39,7 @@ wide_mg_move <- wide_mg_move %>% mutate(dyn_processes = (init_withdrawn + new + 
 write.csv(wide_mg_move, file = "wide_mg_move.csv", row.names=FALSE)
 ```
 
-#New tbl includes only panc br anesthetized larvae and includes the number of processes contacting myelin sheaths and OL somas at the end of the imaging period (end was an arbitrary choice)
+New tbl includes only panc br anesthetized larvae and includes the number of processes contacting myelin sheaths and OL somas at the end of the imaging period (end was an arbitrary choice)
 ```{r}
 mg_dynamics_sheaths <- read_csv('mg_dynamics_sheath-soma-contacts.csv')
 View(mg_dynamics_sheaths)

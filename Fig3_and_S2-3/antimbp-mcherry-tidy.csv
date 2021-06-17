@@ -1,0 +1,23 @@
+﻿n_spots,spot_type,cell_id
+1,anti-mbp+ mCherry+,1
+4,anti-mbp+ mCherry+,2
+4,anti-mbp+ mCherry+,3
+2,anti-mbp+ mCherry+,4
+1,anti-mbp+ mCherry+,5
+3,anti-mbp+ mCherry+,6
+8,anti-mbp+ mCherry+,7
+1,anti-mbp+ mCherry+,8
+7,anti-mbp+ mCherry+,9
+3,anti-mbp+ mCherry+,10
+4,anti-mbp+ mCherry+,11
+0,anti-mbp- mCherry+,1
+0,anti-mbp- mCherry+,2
+1,anti-mbp- mCherry+,3
+0,anti-mbp- mCherry+,4
+1,anti-mbp- mCherry+,5
+1,anti-mbp- mCherry+,6
+1,anti-mbp- mCherry+,7
+0,anti-mbp- mCherry+,8
+0,anti-mbp- mCherry+,9
+0,anti-mbp- mCherry+,10
+2,anti-mbp- mCherry+,11

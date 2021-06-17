@@ -1,0 +1,163 @@
+---
+title: "microglia ablation ensheathment analysis"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+
+```{r}
+ab_sheaths <- read_csv('ablation_sheaths.csv')
+View(ab_sheaths)
+```
+
+```{r}
+ab_sheaths <- ab_sheaths %>% mutate("pair_group" =
+                         case_when(
+                           group == "sib_dmso" ~ "NTR-",
+                            group == "sib_mtz" ~ "NTR-", 
+                           group == "ntr_dmso" ~ "NTR+",
+                            group == "ntr_mtz" ~ "NTR+",
+                           group == "ctrl_MO" ~ "Irf8 MO",
+                           group == "Irf8_MO" ~ "Irf8 MO",
+                           group == "DMSO_gw" ~ "GW2580",
+                           group == "GW2580" ~ "GW2580")) %>%
+ mutate("group_names_for_facet" =
+           case_when(
+             group == "sib_dmso" ~ "DMSO",
+             group == "sib_mtz" ~ "Mtz",
+             group == "ntr_dmso" ~ "DMSO",
+             group == "ntr_mtz" ~ "Mtz",
+             group == "ctrl_MO" ~ "Ctrl",
+             group == "Irf8_MO" ~ "Irf8 MO",
+             group == "DMSO_gw" ~ "DMSO",
+             group == "GW2580" ~ "GW2580"))
+
+```
+
+```{r}
+ab_sheaths$pair_group <- ab_sheaths$pair_group %>% fct_relevel("Irf8 MO", "GW2580", "NTR-", "NTR+")
+```
+
+```{r}
+ab_sheaths$group <- ab_sheaths$group %>% fct_relevel("sib_dmso", "sib_mtz", "ntr_dmso", "ntr_mtz", "DMSO_gw", "GW2580", "ctrl_MO", "Irf8_MO")
+```
+
+```{r}
+ab_sheaths %>% group_by(group) %>% summarize(sum_sheaths = n(), n_cells = max(cell_id))
+```
+
+
+sheath length plot
+```{r}
+
+ab_comparisons <- list(c("sib_dmso", "sib_mtz"), c("ntr_dmso", "ntr_mtz"), c("DMSO_gw", "GW2580"), c("ctrl_MO", "Irf8_MO"))
+
+ggplot(ab_sheaths, aes(x=group_names_for_facet, y=sheath_length, fill=group))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=2)+
+  geom_boxplot(alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  facet_grid(.~pair_group, scales="free")+
+  labs(x= " ")+
+  ylab(bquote(`Sheath length (`*um~`)`))+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  stat_compare_means(method="wilcox.test", label="p.format", comparisons = ab_comparisons)
+#ggsave('ablation-sheath-length-pretty.png', dpi=300, width=6.5, height=4.5)
+```
+
+NOW same plot but no facets (the pair-grouping to keep controls with their resp groups is making facets not work with stat_compare_means)
+```{r}
+ggplot(ab_sheaths, aes(x=group, y=sheath_length))+
+  geom_jitter(width=0.15, shape=21, alpha=0.75)+
+  geom_boxplot(alpha=0.5)+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  stat_compare_means(method="wilcox.test", label="p.adj", comparisons = ab_comparisons)
+#ggsave('ablation-sheath-length-stats.png', dpi=300, width=6.5, height=4.5)
+```
+
+
+
+```{r}
+ab_sheaths_grouped <- ab_sheaths %>% group_by(group, cell_id, pair_group, group_names_for_facet) %>% mutate(n_sheaths = max(sheath_id), n_somas = mean(somas), n_bites = mean(bites)) %>% mutate(total_sheath_per_OL = sum(sheath_length)) %>% filter(sheath_id == 1)
+#View(ab_sheaths_grouped)
+
+```
+
+sheath number per cell
+```{r}
+ab_comparisons <- list(c("sib_dmso", "sib_mtz"), c("ntr_dmso", "ntr_mtz"), c("DMSO_gw", "GW2580"), c("ctrl_MO", "Irf8_MO"))
+
+ggplot(ab_sheaths_grouped, aes(x=group_names_for_facet, y=n_sheaths, fill=group))+
+  geom_jitter(width=0.2, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  
+  labs(x= " ", y="Sheaths / OL")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  stat_compare_means(inherit.aes=FALSE, aes(x=group, y=n_sheaths), method="wilcox.test", label="p.format", comparisons = ab_comparisons)+
+  facet_grid(.~pair_group, scales = "free")+
+  ylim(0, 40)
+#ggsave('ablation-sheath-number.png', dpi=300, width=6.5, height=4.5)
+  
+```
+
+sheath number stats
+```{r}
+ab_comparisons <- list(c("sib_dmso", "sib_mtz"), c("ntr_dmso", "ntr_mtz"), c("DMSO_gw", "GW2580"), c("ctrl_MO", "Irf8_MO"))
+
+ggplot(ab_sheaths_grouped, aes(x=group, y=n_sheaths, fill=group))+
+  geom_jitter(width=0.15, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  
+  labs(x= " ", y="Sheaths / OL")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  stat_compare_means(inherit.aes=FALSE, aes(x=group, y=n_sheaths), method="wilcox.test", label="p.adj", comparisons = ab_comparisons)
+#ggsave('ablation-sheath-n-stats.png', dpi=300)
+```
+
+
+soma wrapping
+```{r}
+ggplot(ab_sheaths_grouped, aes(group_names_for_facet, y=n_somas, fill=group))+
+  geom_jitter(width=0.2, height=0.2, shape=21, alpha=0.75, size=4)+
+  geom_boxplot( alpha=0.5)+
+  facet_grid(.~pair_group, scales="free")+
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D", "#FFC5FF", "#E3C22D"))+
+  labs(x= " ", y="Somas wrapped / OL")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  ylim(0, 6)
+#ggsave('ablation-soma-wraps.png', dpi=300, width=6.5, height=4.5)
+```
+
+
+```{r}
+ggplot(ab_sheaths_grouped, aes(group, y=n_somas))+
+  stat_compare_means(method="wilcox.test", label="p.adj", comparisons = ab_comparisons)+
+  geom_boxplot()+
+  geom_jitter(width=0.1)+
+  #facet_grid(.~pair_group)+
+  labs(x= " ", y="Soma wraps / OL")+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")
+#ggsave('ablation-soma-wraps-stats.png', dpi=300)
+
+```
+
+

@@ -1,0 +1,141 @@
+---
+title: "bfp-bontb"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+#library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+
+```{r}
+bfp_bontb <- read_csv('bfp-bont-tectum-tidy.csv')
+View(bfp_bontb)
+```
+
+shorten names
+```{r}
+bfp_bontb <-bfp_bontb %>% mutate("fluor2" = 
+                         case_when(
+                           fluor == "mTagBFP-CAAX" ~ "mTagBFP-CAAX",
+                           fluor == "mTagBFP-CAAX-2A-BoNT/B" ~ "-2A-BoNT/B",
+                           fluor == "mTagBFP-CAAX-2A-dnVamp2" ~ "-2A-dnVamp2"))
+```
+
+```{r}
+bfp_bontb$fluor2 <- bfp_bontb$fluor2 %>% fct_relevel("mTagBFP-CAAX","-2A-dnVamp2", "-2A-BoNT/B")
+```
+
+correct for multiple comparisons
+```{r}
+mc_myelin_eng <- compare_means(data=bfp_bontb, puncta_area~fluor2, method = "wilcox.test", p.adjust.method = "holm") 
+statsize<-5
+mc_myelin_eng
+```
+
+```{r}
+
+ggplot(bfp_bontb, aes(x=fluor2, y=puncta_area))+
+  geom_violin(aes(x=fluor2, y=puncta_area), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.2, height=0.2, shape=21, size=5, alpha=0.75, fill="#FFC5FF")+
+
+  stat_pvalue_manual(mc_myelin_eng, size=statsize, y.position = c(16,19,22))+
+
+  theme(legend.position = "none")+
+  ylab(bquote(`Myelin punctum area (`*um^2~`)`))+
+  labs(x=" ")
+#ggsave('bontb-bfp-plots-5-2-19/inclusion-size.png', dpi=300, height=4.5, width=6)
+```
+
+```{r}
+bfp_bontb2 <- bfp_bontb %>% group_by(cell_id, fluor) %>% mutate(obj_area_fraction = sum(puncta_area)/mean(cell_area)) %>% mutate(sum_puncta_areas = sum(puncta_area)) %>% filter(puncta_id == 0 | puncta_id == 1)
+#View(bfp_bontb2)
+```
+
+```{r}
+mc_myelin_areapercell <- compare_means(data=bfp_bontb2, sum_puncta_areas~fluor2, method = "wilcox.test", p.adjust.method = "holm") 
+statsize<-5
+mc_myelin_areapercell
+```
+
+
+```{r}
+
+ggplot(bfp_bontb2, aes(x=fluor2, y=sum_puncta_areas))+
+  geom_violin(aes(x=fluor2, y=sum_puncta_areas), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.265, height=0.15, shape=21, size=6, alpha=0.75, fill="#FFC5FF")+
+  
+  
+  stat_pvalue_manual(mc_myelin_areapercell, size=statsize, y.position = c(48,55,62))+
+
+  
+  theme(legend.position = "none")+
+  labs(x = " ")+
+  ylab(bquote(`Myelin area / microglia (`*um^2~`)`))
+#ggsave('bontb-bfp-plots-5-2-19/myelin-area-per-mg.png', dpi=300, height=4.5, width=6)
+  
+```
+
+
+```{r}
+ggplot(bfp_bontb2, aes(x=fluor2, y=sum_puncta_areas, fill=fluor2))+
+  geom_violin(aes(x=fluor2, y=sum_puncta_areas), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.265, height=0.15, shape=21, size=6, alpha=0.75)+
+  #scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  scale_fill_manual(values= c("#FFC5FF", "#FFC5FF", "#FFC5FF"))+
+  stat_compare_means(inherit.aes=FALSE, aes(x=fluor2, y=sum_puncta_areas), method = "wilcox.test", comparisons = comps_bontb_dnvamp2, label = "p.format", label.y=c(50, 56, 62))+
+  theme(legend.position = "none")+
+  labs(x = " ")+
+  ylab(bquote(`Myelin area / microglia (`*um^2~`)`))
+#ggsave('bontb-bfp-plots-5-2-19/myelin-area-per-mg.png', dpi=300, height=4.5, width=6)
+  
+```
+
+
+
+```{r}
+
+ggplot(bfp_bontb2, aes(x=fluor2, y=cell_area, fill=fluor2))+
+  geom_violin(aes(x=fluor2, y=cell_area), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.25, height=16, shape=21, size=6, alpha=0.75)+
+  scale_fill_manual(values= c("#FFC5FF", "#FFC5FF", "#FFC5FF"))+
+  #scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  stat_compare_means(inherit.aes=FALSE, aes(x=fluor2, y=cell_area), method = "kruskal.test", label = "p.signif", label.x=1.975, label.y=750, size=5.5)+
+  theme(legend.position = "none")+
+  labs(x = " ")+
+  ylab(bquote(`Microglia size (`*um^2~`)`))
+#ggsave('bontb-bfp-plots-5-2-19/microglia-size.png', dpi=300, height=4.5, width=6)
+```
+
+```{r}
+bfp_bontb_punctacount <- bfp_bontb %>% group_by(cell_id, fluor) %>% mutate(n_puncta = max(puncta_id))%>% filter(puncta_id == 1 | n_puncta == 0)
+head(bfp_bontb_punctacount)
+```
+
+```{r}
+bfp_bontb_punctacount %>% group_by(fluor) %>% summarize(total_puncta_for_stats = sum(n_puncta), total_cells = n())
+```
+
+
+```{r}
+ggplot(bfp_bontb_punctacount, aes(x=n_puncta, fill=fluor2))+
+  geom_histogram(position = "dodge", binwidth=1, aes(y=..density..), alpha=0.75, color="black")+
+  scale_fill_manual(values=c("#E3C22D", "grey", "#FFC5FF"))+
+  geom_density(inherit.aes=FALSE, aes(x=n_puncta, fill=fluor2), alpha=.2, adjust=2.5)+
+  labs(x="Myelin inclusions / microglia", y="Density", fill = " ")+
+  theme(legend.position = c(0.35,0.5))
+#ggsave('bontb-bfp-plots-5-2-19/histogram-bfp-bontb.png', dpi=300, width=6, height=4.5)
+```
+

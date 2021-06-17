@@ -1,0 +1,111 @@
+---
+title: "Untitled"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+Does bafilomycin kill OLs?
+```{r}
+tagrfp_baf_dmso <- read_csv('tidy-baf-dmso-tagrfp-ac.csv')
+tagrfp_baf_dmso$treatment <- tagrfp_baf_dmso$treatment %>% fct_relevel("DMSO", "Bafilomycin A1")
+View(tagrfp_baf_dmso)
+```
+
+```{r}
+tagrfp_baf_dmso %>% group_by(treatment) %>% summarize(tot_mbp = sum(mbp_cells), tot_fish = n())
+```
+
+
+```{r}
+ggplot(tagrfp_baf_dmso, aes(x=treatment, y=mbp_cells, fill="#EBC926"))+
+  geom_violin(aes(x=treatment, y=mbp_cells), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.25, height=2, shape=21, size=7, alpha=0.75)+
+  scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  stat_compare_means(inherit.aes=FALSE, aes(x=treatment, y=mbp_cells), method = "wilcox.test", label = "p.signif", size=5.5, label.x=1.475, label.y=68)+
+  theme(legend.position= "none")+
+  labs(x=" ", y="mbp+ cells / 3.5 hemisegments")
+#ggsave('mbp-cells-hemiseg-baf-tagrfp.png', dpi=300, width=5, height=4.5)
+```
+
+
+```{r}
+ggplot(tagrfp_baf_dmso, aes(x=treatment, y=acridine_cells, fill="#EBC926"))+
+  #geom_violin(aes(x=treatment, y=acridine_cells), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.25, height=.1, shape=21, size=7, alpha=0.75)+
+  scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  stat_compare_means(inherit.aes=FALSE, aes(x=treatment, y=acridine_cells), method = "wilcox.test", label = "p.signif", size=5.5, label.x=1.475, label.y=3)+
+  scale_y_continuous(breaks=c(0, 1, 2,3))+
+  theme(legend.position= "none")+
+  labs(x=" ", y="acridine orange+ cells")
+#ggsave('acr-orange-cells-baf-tagrfp.png', dpi=300, width=5, height=4.5)
+```
+
+
+```{r}
+ggplot(tagrfp_baf_dmso, aes(x=treatment, y=mbp_ac, fill="#EBC926"))+
+  #geom_violin(aes(x=treatment, y=mbp_ac), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.25, height=.05, shape=21, size=7, alpha=0.75)+
+  scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  stat_compare_means(inherit.aes=FALSE, aes(x=treatment, y=mbp_ac), method = "wilcox.test", label = "p.signif", size=5.5, label.x=1.475, label.y=1.5)+
+  scale_y_continuous(breaks=c(0, 1, 2))+
+  theme(legend.position= "none")+
+  labs(x=" ", y="mbp+ acridine orange+ cells")
+#ggsave('acr-mbp-cells-baf-tagrfp.png', dpi=300, width=5, height=4.5)
+```
+
+
+Does bafilomycin change sheath length or number?
+```{r}
+baf_sheath_length <- read_csv('baf_sheath_length_number.csv')
+#View(baf_sheath_length)
+```
+
+```{r}
+baf_sheath_length$group <- baf_sheath_length$group %>% fct_relevel("DMSO", "Bafilomycin A1")
+```
+
+
+```{r}
+ggplot(baf_sheath_length, aes(x=group, y=sheath_length, fill=factor(cell_id)))+
+  geom_violin(aes(x=group, y=sheath_length), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+ geom_jitter(width=0.2, shape=21, size=5, alpha=0.75)+
+  scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  theme(legend.position = "none")+
+  labs(x= " ", y= "sheath length (um)")+
+  stat_compare_means(inherit.aes=FALSE, aes(x=group, y=sheath_length), method = "wilcox.test", label = "p.signif", size=5.5, label.x=1.475, label.y=80)
+#ggsave('baf-sheath-length.png', dpi=300, width=5, height=4.5)
+```
+
+this df pulls the first row from each OL (sheath_id ==1 is the first sheath of each) to generate one row per OL with sheath number (the largest sheath id)
+```{r}
+baf_n_sheaths<- baf_sheath_length %>% group_by(group, cell_id) %>% mutate(n_sheaths = max(sheath_id)) %>% filter(sheath_id == 1)
+#View(baf_n_sheaths)
+
+```
+
+
+```{r}
+ggplot(baf_n_sheaths, aes(x=group, y=n_sheaths, fill=factor(cell_id)))+
+  geom_violin(aes(x=group, y=n_sheaths), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.2, height=0.1, shape=21, size=7, alpha=0.8)+
+  stat_compare_means(inherit.aes=FALSE, aes(x=group, y=n_sheaths), method = "wilcox.test", label = "p.signif", label.x=1.475, size=5.5)+
+scale_fill_discrete_diverging(4, palette = "Blue Yellow 3", c1=100, h1=285, h2=295, l1=90, l2=68)+
+theme(legend.position = "none")+
+  labs(x=" ", y="# sheaths / OL")
+#ggsave('baf-sheath-number.png', dpi=300, width=5, height=4.5)
+```

@@ -1,0 +1,45 @@
+---
+title: "ihc quant (mbp/mcherry)"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+ihc_quant <- read_csv('antimbp-mcherry-tidy.csv')
+View(ihc_quant)
+```
+
+pretty group names
+```{r}
+ ihc_quant2 <-ihc_quant %>% group_by(spot_type) %>% summarize(sum_spots = sum(n_spots)) %>% mutate("mCherry+ inclusions" = c(1, 1)) %>% mutate("spot_types_clean" =
+           case_when(
+             spot_type == "anti-mbp- mCherry+" ~ "anti-Mbp-",
+             spot_type == "anti-mbp+ mCherry+" ~ "anti-Mbp+"))
+```
+
+PLOT (stacked bar)
+```{r}
+ggplot(ihc_quant2, aes(`mCherry+ inclusions`, y=sum_spots/44, fill= spot_types_clean))+
+  geom_bar(stat="identity")+
+  scale_fill_manual(values=c("#E3C22D", "#FFC5FF"))+
+  scale_x_discrete()+
+  labs(y="Fraction of inclusions", fill=" ")+
+  theme(legend.position = "top")
+#ggsave('ihc-antimbp-mcherry-barplot.png', dpi=300, width=4.5, height=4.5)
+```
+

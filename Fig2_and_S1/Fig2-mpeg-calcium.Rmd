@@ -1,0 +1,147 @@
+---
+title: "mpeg-calcium"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+read in all three csvs
+```{r}
+gc_vs_mscar <- read_csv('gc6s-vs-mscar-tidy.csv')
+mscar_trans <- read_csv('tidy_mscar-book.csv')
+gc_trans <- read_csv('tidy-aqua-book.csv')
+```
+
+
+```{r}
+ggplot(gc_vs_mscar, aes(x=dff, y=..density.., fill=fluor))+
+  
+  geom_histogram(position = "dodge", binwidth=0.005, alpha=0.75, color="black")+
+  scale_fill_manual(values=c("#E3C22D", "#FFC5FF"))+
+  geom_density(alpha=.2)+
+  
+  #geom_histogram(position="dodge", binwidth=0.005)+
+  geom_segment(aes(x=0.05, y=0, xend=0.05, yend=40), color="black", size=2, linetype="dotted", data=gc_vs_mscar)+
+  theme(legend.position = "top")+
+  labs(x="Event max dF/F", y="Relative density (au)", fill="")
+#ggsave('hist-mscar-gc6s-dff.png', dpi=300, height=4.5, width=6)
+```
+
+```{r}
+gc_vs_mscar %>% drop_na() %>% group_by(fluor) %>% summarise(mean_dff = mean(dff), err = sd(dff))
+
+```
+
+```{r}
+gc_vs_mscar %>% count(fluor)
+#gc_vs_mscar %>% filter(dff >= 0.05) %>% count(fluor) #so 46/228 (20%) of mScar transients are >= to 0.05
+```
+```{r}
+gc_trans <- gc_trans %>% filter(dff >= 0.05) %>% drop_na() #accidentally left 4 unfiltered dff's less than 0.05 in the tidy data, so elim them first
+gc_trans
+```
+
+
+
+```{r}
+gc_trans2 <- gc_trans %>% group_by(cell_id) %>% mutate("max_dist" = max(dist_to_soma)) %>% mutate("rel_dist_per_cell" = dist_to_soma/max_dist) %>% mutate(n = n()) %>% mutate("trans_freq" = n/acq_dur) %>% mutate("nearfar" =
+                       case_when(
+                         rel_dist_per_cell >=0.5 ~ "Distal",
+                         rel_dist_per_cell <0.5 ~ "Proximal"))
+gc_trans2
+
+```
+
+some summary stats, appear in Supplementary Table 1
+```{r}
+gc_trans2 %>% ungroup() %>% summarize(`Mean area (um^2)` = mean(area), `SD area` = sd(area), `Mean dF/F` = mean(dff), `SD dF/F`=sd(dff), `Mean duration (s)` = mean(dur), `SD duration` = sd(dur), `Mean distance from soma (um)` = mean(dist_to_soma), sd_dist = sd(dist_to_soma), `Mean frequency (events/s)` = mean(trans_freq), sd_freq = sd(trans_freq))
+```
+
+
+the chosen_set is the list of large transients I investigate for sheath contacting or not
+```{r}
+chosen_set <- gc_trans2 %>% ungroup() %>% filter(area >= 3) %>% filter(dff >= 0.10) %>% arrange(desc(dff)) %>% select(cell_id, area, dff, dur, n) %>% arrange(cell_id)
+chosen_set 
+#write.csv(chosen_set, 'chosen_set.csv')
+```
+
+```{r}
+chosen <- read_csv('chosen_set_sheaths.csv')
+chosen <- chosen %>% mutate("blah" = 1) #dummy column for x-axis
+chosen
+```
+
+
+```{r}
+ggplot(chosen, aes(x=blah, fill=sheath_cont))+
+  geom_bar(position="fill")+
+  scale_x_discrete()+
+  theme(legend.position = "top")+
+  scale_fill_manual(values=c("#E3C22D", "#FFC5FF"))+
+  labs(fill=" ", y="Fraction of transients", x="Microglia calcium transients") #9/31 microglia represented here
+#ggsave('stacked-bar-sheath-nonsheath-ca.png', dpi=300, width=4.5, height=4.5)
+```
+
+sheath transients not different dff or area, but different durations
+```{r}
+ggplot(chosen, aes(x=sheath_cont, y=dur))+
+  
+  geom_violin(inherit.aes=FALSE, aes(x=sheath_cont, y=dur), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  
+  geom_jitter(width=0.2, height=0.2, shape=21, size=5, alpha=0.75, fill="#FFC5FF")+
+  stat_compare_means(method = "wilcox.test", label = "p.format", size=5.5, label.x=1.375)+
+  labs(x=" ", y="Event duration (s)")
+#ggsave('event-dur-sheath-nonsheath.png', dpi=300, width=6, height=4.5)
+```
+
+
+```{r}
+ggplot(chosen, aes(x=sheath_cont, y=dff))+ #sub dff/area for y to see that dff also not different betw groups
+  geom_violin(inherit.aes=FALSE, aes(x=sheath_cont, y=dff), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  
+  geom_jitter(width=0.2, height=0.02, shape=21, size=5, alpha=0.75, fill="#FFC5FF")+
+  stat_compare_means(method = "wilcox.test", label = "p.format", size=5.5, label.x=1.375)+
+  labs(x=" ", y="Event max dF/F")
+#ggsave('event-dff-sheath-nonsheth.png', dpi=300, width=6, height=4.5)
+```
+
+
+Sheath vs nonsheath have diff durations, but is this only due to location in microglia (sheath contacts are at distal locations)? No, simply classifying as distal vs proximal events do not differ
+```{r}
+ggplot(gc_trans2, aes(x=nearfar, y=dur, fill=nearfar))+
+  geom_violin(inherit.aes=FALSE, aes(x=nearfar, y=dur), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  
+  geom_jitter(width=0.2, height=0.2, shape=21, size=4, alpha=0.75, fill="#FFC5FF")+
+  stat_compare_means(method = "wilcox.test", label = "p.format", size=5.5, label.x=1.375)+
+  labs(x=" ", y="Event duration (s)")
+#ggsave('event-dur-prox-distal.png', dpi=300, width=6, height=4.5)
+ 
+```
+
+
+```{r}
+ggplot(gc_trans2, aes(x=nearfar, y=dff, fill=nearfar))+
+  geom_violin(inherit.aes=FALSE, aes(x=nearfar, y=dff), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  
+  geom_jitter(width=0.2, height=0.02, shape=21, size=4, alpha=0.75, fill="#FFC5FF")+
+  stat_compare_means(method = "wilcox.test", label = "p.format", size=5.5, label.x=1.375)+
+  labs(x=" ", y="Event max dF/F")
+#ggsave('event-dff-prox-distal.png', dpi=300, width=6, height=4.5)
+```
+
+

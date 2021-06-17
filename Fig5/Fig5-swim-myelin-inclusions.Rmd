@@ -1,0 +1,61 @@
+---
+title: "Forced swim (strong water current) myelin inclusions in microglia"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+manips_inclus <- read_csv('swim_normal_inc_myelin_inclusions-tidy.csv')
+```
+
+Water current
+```{r}
+spin_norm <- manips_inclus %>% filter(treatment == "Normal incubation" | treatment == "Strong water current")
+#View(spin_norm)
+```
+
+```{r}
+spin2 <- spin_norm %>% group_by(cell_id, treatment) %>% mutate(obj_area_fraction = sum(puncta_area)/mean(cell_area)) %>% mutate(sum_puncta_areas = sum(puncta_area)) %>% filter(puncta_id == 0 | puncta_id == 1)
+#View(spin2)
+```
+
+```{r}
+ggplot(spin2, aes(x=treatment, y=sum_puncta_areas, fill=treatment))+
+  geom_violin(aes(x=treatment, y=sum_puncta_areas), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.2, height=0.1, shape=21, size=7, alpha=0.75)+
+  #scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  scale_fill_manual(values = c("#FFC5FF", "#FFC5FF"))+
+  stat_compare_means(inherit.aes=FALSE, aes(x=treatment, y=sum_puncta_areas), method = "wilcox.test", label = "p.format", size=5.5, label.x=1.375, label.y=35)+
+  theme(legend.position = "none")+
+  labs(x = " ")+
+  ylab(bquote(`Myelin area / microglia (`*um^2~`)`))
+#ggsave('water-current-myelin-inclusions.png', dpi=300, width=6, height=4.5)
+```
+
+```{r}
+ggplot(spin2, aes(x=treatment, y=cell_area, fill=treatment))+
+  geom_violin(aes(x=treatment, y=cell_area), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.2, height=0.1, shape=21, size=7, alpha=0.75)+
+  #scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  scale_fill_manual(values = c("#FFC5FF", "#FFC5FF"))+
+  stat_compare_means(inherit.aes=FALSE, aes(x=treatment, y=cell_area), method = "wilcox.test", label = "p.format", size=5.5, label.x=1.375, label.y=850)+
+  theme(legend.position = "none")+
+  labs(x = " ")+
+  ylab(bquote(`Microglia area (`*um^2~`)`))
+#ggsave('water-current-microglia-area.png', dpi=300, width=6, height=4.5)
+```

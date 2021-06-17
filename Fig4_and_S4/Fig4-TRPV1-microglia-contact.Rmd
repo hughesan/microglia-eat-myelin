@@ -1,0 +1,80 @@
+---
+title: "trpv1-mtagbfp neurons contacted by microglia"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+library(scales)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+trpv1_contact <- read_csv('blinded-key-trpv1.csv')
+View(trpv1_contact)
+```
+
+fix group names to include geno and drug
+```{r}
+trpv1_contact <- trpv1_contact %>% mutate(fraction_contacted = n_cont_neurons / n_neurons) %>% mutate("group2"=
+                                                                                                        case_when(
+                                                                                                          group == "DMSO" ~ "TRPV1-mTagBFP + DMSO",
+                                                                                                          group == "Capsaicin" ~ "TRPV1-mTagBFP + Csn"))
+                                                                                                          
+```
+
+
+```{r}
+trpv1_contact$group <- trpv1_contact$group %>% fct_relevel("DMSO", "Capsaicin")
+```
+
+summary stats
+```{r}
+trpv1_contact %>% group_by(group) %>% summarize(tot_fish= n(), tot_neurons = sum(n_neurons))
+```
+
+
+```{r}
+ggplot(trpv1_contact, aes(x=group, y=fraction_contacted, fill=group))+
+  geom_violin(aes(x=group, y=fraction_contacted), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, adjust=1.3, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.225, height=0.075, shape=21, size=7, alpha=0.75)+
+  
+  #scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  scale_fill_manual(values= c("#FFC5FF", "#FFC5FF"))+
+  stat_compare_means(method = "wilcox.test", label = "p.format", size=5.5, label.x=1.35, label.y=1.5)+
+  theme(legend.position = "none")+
+  labs(x = " ", y= "Fraction of neurons contacted")+
+  scale_y_continuous(breaks = pretty_breaks())+
+  #theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1))
+#ggsave('trpv1-contact.png', dpi=300, width=6, height=4.5)  
+  
+
+```
+
+```{r}
+ggplot(trpv1_contact, aes(x=group, y=n_microglia, fill=group))+
+  geom_violin(aes(x=group, y=n_microglia), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, adjust=1.3, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.225, height=0.075, shape=21, size=7, alpha=0.75)+
+  
+  #scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  scale_fill_manual(values= c("#FFC5FF", "#FFC5FF"))+
+  stat_compare_means(method = "wilcox.test", label = "p.format", size=5.5, label.x=1.35, label.y=8)+
+  theme(legend.position = "none")+
+  labs(x = " ", y= "Microglia / lateral tectum")
+#ggsave('n-microglia-trpv1.png', dpi=300, width=6, height=4.5)
+  
+```
+
+

@@ -1,0 +1,121 @@
+---
+title: "retraction-vs-phagocytosis"
+author: "alexandria hughes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+elims <- read_csv('ret-phago-2020-tidy.csv')
+View(elims)
+```
+
+```{r}
+elims <- elims %>% mutate("Elim"=
+                            case_when(
+                              elim_type == "engulfed" ~ "Engulfed",
+                              elim_type == "retracted" ~ "Retracted"))
+```
+
+
+```{r} 
+elims_meas <- drop_na(elims) 
+elims_meas
+```
+
+
+```{r}
+elims_meas <- elims_meas %>% group_by(set_id) %>% mutate(n_elim_events = max(elim_id))
+```
+
+PLOT: sheath length retracted vs engulfed
+```{r}
+ggplot(elims_meas, aes(x=Elim, y=length))+
+  
+  geom_violin(inherit.aes=FALSE, aes(x=Elim, y=length), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  
+  geom_jitter(width=0.2, height=0.2, shape=21, size=5, alpha=0.75, fill="#FFC5FF")+
+  stat_compare_means(method = "wilcox.test", label = "p.format", size=5.5, label.x=1.375)+
+  
+  ylab(bquote(`Sheath length (`*um~`)`))+
+  xlab("")
+#ggsave('ret-phago-length.png', dpi=300, width=6, height=4.5)
+```
+
+
+
+```{r}
+elims_2 <- elims %>% count(set_id, Elim) 
+
+elims_2 <- elims_2 %>% spread(Elim, n) 
+
+elims_2$Engulfed <- elims_2$Engulfed %>% replace_na(0)
+elims_2$Retracted <- elims_2$Retracted %>% replace_na(0)
+
+elims_2 <- elims_2 %>% mutate("eng_ratio" = Engulfed/(Engulfed+Retracted), "ret_ratio" = Retracted/(Engulfed+Retracted)) %>% mutate("blah" = 1) #blah is a dummy column for single x-axis stacked bar graph
+
+elims_2
+```
+
+
+```{r}
+
+elims_4 <- elims_2 %>% select(set_id, Engulfed, Retracted) %>% gather(e_type, n_elim, -set_id) %>% mutate("blah" = 1)
+elims_4
+```
+
+
+```{r}
+elims_3 <- drop_na(elims) %>% count(set_id, Elim)
+elims_3 <- elims_3 %>% mutate("blah" = 1)
+
+```
+
+PLOT: paired engulfed vs retracted numbers per 3 hr timelapse
+```{r}
+
+pd=position_dodge(0.3)
+
+ggplot(elims_4, aes(x=e_type, y=n_elim, group=set_id))+
+  
+  geom_violin(inherit.aes=FALSE, aes(x=e_type, y=n_elim), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  
+  geom_point(position=pd, stat="summary", width=0.35, size=5, fill="#FFC5FF", shape=21) +
+  stat_summary(fun = "mean", geom="line", size=1.25, alpha=0.4, position = pd) +
+  stat_compare_means(inherit.aes=FALSE, aes(x=e_type, y=n_elim), method="wilcox.test", label = "p.format", size=5.5, label.x=1.375, label.y=8.5) +
+  
+  labs(x=" ", y="Sheaths eliminated / 3 hours")
+#ggsave('ret-phago-paired-sheaths-elim.png', dpi=300, width=6, height=4.5)
+```
+
+```{r}
+elims_5 <- elims_2 %>% select(set_id, eng_ratio, ret_ratio) %>% gather(e_type, rel_freq, -set_id) %>% mutate("blah" = 1)
+elims_5
+```
+
+PLOT: relative freq ret vs engulfed
+```{r}
+ggplot(elims_3, aes(x=blah, y=n, fill=Elim))+
+  geom_bar(stat="identity", position="fill")+
+  scale_x_discrete()+
+  labs(x="Eliminated sheaths", y="Fraction of sheaths", fill="")+
+  theme(legend.position = "top")+
+  scale_fill_manual(values=c("#E3C22D", "#FFC5FF"))
+#ggsave('ret-phago-rel-freq-bar.png', dpi=300, width=4.5, height=4.5)
+```
+
