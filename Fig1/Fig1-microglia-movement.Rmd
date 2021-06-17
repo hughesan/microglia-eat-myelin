@@ -1,0 +1,232 @@
+---
+title: "Fig 1: microglia movement"
+author: "alexandria hughes"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+```{r}
+microglia_movement <- read_csv('tidy_microglia_movement.csv')
+#View(microglia_movement)
+```
+
+
+```{r}
+wide_mg_move <- spread(microglia_movement, type_processes, n_processes)
+#View(wide_mg_move)
+
+```
+
+```{r}
+wide_mg_move <- wide_mg_move %>% mutate(dyn_processes = (init_withdrawn + new + new_withdrawn)/time)
+```
+
+```{r}
+write.csv(wide_mg_move, file = "wide_mg_move.csv", row.names=FALSE)
+```
+
+#New tbl includes only panc br anesthetized larvae and includes the number of processes contacting myelin sheaths and OL somas at the end of the imaging period (end was an arbitrary choice)
+```{r}
+mg_dynamics_sheaths <- read_csv('mg_dynamics_sheath-soma-contacts.csv')
+View(mg_dynamics_sheaths)
+```
+
+
+```{r}
+mg_dynamics_sheaths <- mg_dynamics_sheaths %>% mutate(end_not_contacting = end - end_sheath_contacting - end_soma_contacting)
+head(mg_dynamics_sheaths)
+```
+
+```{r}
+mg_dyn_long <- mg_dynamics_sheaths  %>% gather('end_sheath_contacting', 'end_soma_contacting', 'end_not_contacting', key = "contact_type", value="n_contacts")
+head(mg_dyn_long)
+```
+
+```{r}
+mg_dyn_long <- mg_dyn_long %>% mutate("type_of_contact" = 
+                         case_when(
+                           contact_type == "end_sheath_contacting" ~ "Sheath",
+                           contact_type == "end_soma_contacting" ~ "OL soma",
+                           contact_type == "end_not_contacting" ~ "No labeled target"))
+mg_dyn_long$type_of_contact <- mg_dyn_long$type_of_contact %>% fct_relevel("Sheath", "No labeled target", "OL soma")
+
+mg_dyn_long <- mg_dyn_long %>% filter(n_contacts != "NA") %>% mutate(cont_end = n_contacts/end)
+
+mg_dyn_long <- mg_dyn_long %>% mutate(new_cell_id = 
+                         case_when(
+                           cell_id == "9" ~ "7",
+                           cell_id == "10" ~ "8",
+                           cell_id == "11" ~ "9",
+                           cell_id == "12" ~ "10",
+                           cell_id == "13" ~ "11",
+                           TRUE~as.character(cell_id)))
+mg_dyn_long$new_cell_id <- mg_dyn_long$new_cell_id %>% fct_relevel("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+```
+
+```{r}
+#View(mg_dyn_long)
+```
+
+Cool trick on matching the line and point dodges so that they jitter together
+
+
+```{r}
+dyn_mc <- compare_means(data=mg_dyn_long, cont_end~type_of_contact, method = "wilcox.test", p.adjust.method = "holm") 
+statsize<-5
+dyn_mc
+```
+
+```{r}
+pd <- position_dodge(0.3)
+
+ggplot(mg_dyn_long, aes(x=type_of_contact, y=n_contacts/end, group=cell_id))+
+
+  scale_color_discrete_diverging(11, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  
+  geom_violin(inherit.aes=FALSE, aes(x=type_of_contact, y=n_contacts/end), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  
+  geom_point(position=pd, width=0.35, stat='summary', fun.y=mean, size=5, fill="#FFC5FF", shape=21) +
+  stat_summary(fun.y=mean, geom="line", size=1.25, alpha=0.5, position = pd)+
+  theme(legend.position="none")+
+  
+  #stat_compare_means(method = "wilcox.test", comparisons=compare_contact, label = "p.adj", label.y=c(1.32, 1.44, 1.20))+
+  
+  stat_pvalue_manual(dyn_mc, size=statsize, y.position = c(1.45,1.3,1.15))+
+
+  
+  labs(x= " ", y = "Fraction of microglia processes")
+
+#ggsave('phago graphs 2-5-19/microglia-processes-contacting-things-new-with-lines.png', dpi=300, width=6, height=4.5)
+
+```
+
+
+```{r}
+pd <- position_dodge(0.3)
+
+ggplot(mg_dyn_long, aes(x=type_of_contact, y=n_contacts/end, color=factor(cell_id), group=cell_id))+
+
+  scale_color_discrete_diverging(11, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  
+  geom_violin(inherit.aes=FALSE, aes(x=type_of_contact, y=n_contacts/end), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  
+  geom_point(position=pd, width=0.35, stat='summary', fun.y=mean, size=5, color="#FFC5FF") +
+  stat_summary(fun.y=mean, geom="line", size=1.25, alpha=0.8, position = pd)+
+  theme(legend.position="none")+
+  
+  #stat_compare_means(method = "wilcox.test", comparisons=compare_contact, label = "p.adj", label.y=c(1.32, 1.44, 1.20))+
+  
+  stat_pvalue_manual(dyn_mc, size=statsize, y.position = c(1.45,1.3,1.15))+
+
+  
+  labs(x= " ", y = "Fraction of microglia processes")
+#ggsave('phago graphs 2-5-19/microglia-processes-contacting-things-new-with-lines.png', dpi=300, width=6, height=4.5)
+  
+```
+Cool trick on matching the line and point dodges so that they jitter together
+```{r}
+pd <- position_dodge(0.3)
+compare_contact <- list(c("Sheath", "OL soma"), c("Sheath", "No labeled target"), c("OL soma", "No labeled target"))
+
+ggplot(mg_dyn_long, aes(x=`type of contact`, y=n_contacts/end, color=factor(cell_id), group=cell_id, fill=`type of contact`))+
+  scale_fill_manual(values= c("#FFC5FF", "#FFC5FF", "#FFC5FF"))+
+  scale_color_discrete_diverging(11, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  geom_violin(inherit.aes=FALSE, aes(x=`type of contact`, y=n_contacts/end), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  #geom_jitter(width=0.05, size=6, shape=21, alpha=0.75)+
+  geom_point(position=pd, width=0.35, stat='summary', fun.y=mean, size=5) +
+  stat_summary(fun.y=mean, geom="line", size=1.25, alpha=0.8, position = pd)+
+  theme(legend.position="none")+
+  stat_compare_means(method = "wilcox.test", comparisons=compare_contact, label = "p.adj", label.y=c(1.32, 1.44, 1.20))+
+  labs(x= " ", y = "Fraction of microglia processes")
+#ggsave('phago graphs 2-5-19/microglia-processes-contacting-things-new-with-lines.png', dpi=300, width=6, height=4.5)
+  
+```
+
+```{r}
+
+compare_contact <- list(c("sheath", "OL soma"), c("sheath", "no labeled target"), c("OL soma", "no labeled target"))
+ggplot(mg_dyn_long, aes(x=`type of contact`, y=n_contacts/end, fill=`type of contact`))+
+  
+  geom_violin(inherit.aes=FALSE, aes(x=`type of contact`, y=n_contacts/end), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.25, height=0.025, size=6, shape=21, alpha=0.75)+
+  
+  scale_fill_manual(values= c("#FFC5FF", "#FFC5FF", "#FFC5FF"))+
+  stat_compare_means(method = "wilcox.test", comparisons=compare_contact, label = "p.adj", label.y=c(1.32, 1.44, 1.56))+
+  #geom_boxplot(inherit.aes=FALSE, aes(x=`type of contact`, y=n_contacts/end), alpha=0.2, fill="#F9FFAF")+
+  theme(legend.position = "none")+
+  labs(x= " ", y = "fraction of microglia processes")
+#ggsave('phago graphs 2-5-19/microglia-contact-boxplot.png', dpi=300, width=6.5, height=4.5)
+
+```
+
+
+```{r}
+#swithc y back to n_contacts (not div by end) to get back to before 10-10-19
+ggplot(mg_dyn_long, aes(x=new_cell_id, y=n_contacts, fill=`type of contact`))+
+  geom_bar(stat="identity", color="black", size=1, alpha=0.75)+
+  labs(x="Cell id#", y = "Number of processes", fill = "Target")+
+  scale_fill_manual(values=c("#E3C22D", "#FFC5FF", "#888888"))
+#ggsave('phago graphs 2-5-19/microglia-contact-barplot.png', dpi=300, width=6, height=4.5)
+
+#diverging_hcl(20, palette = "Blue Yellow 3", c1=100, h1=70, h2=285, l1=90, l2=68)
+ #[1] "#FFE01B" "#F8D41E" "#EBC926" "#E0C030" "#D6B83C" "#CDB248" "#C5AC55" "#BEA963" "#B7A674" "#B0A58A" "#AEA0BE" "#B69DD1" "#BE9CDF" "#C59DEC"
+#[15] "#CEA0F9" "#D8A4FF" "#E2AAFF" "#EFB1FF" "#FCBAFF" "#FFC5FF"
+  
+```
+
+
+```{r}
+microglia_movement_changes <- microglia_movement #%>% filter(type_processes == "init_withdrawn" |type_processes == "new" |type_processes == "new_withdrawn")
+#View(microglia_movement_changes)
+
+```
+
+```{r}
+microglia_movement_changes <- microglia_movement_changes %>% filter(anesthetic == "pb") %>% mutate(n_processes = ifelse(type_processes == "init_withdrawn", n_processes *-1, n_processes)) %>% mutate(n_processes = ifelse(type_processes == "new_withdrawn", n_processes *-1, n_processes))
+```
+
+
+```{r}
+microglia_movement_changes <-microglia_movement_changes %>% mutate("process count" = 
+                         case_when(
+                           type_processes == "initial" ~ "Initial",
+                           type_processes == "init_withdrawn" ~ "Init withdrawn",
+                           type_processes == "new" ~ "New",
+                           type_processes == "new_withdrawn" ~ "New withdrawn",
+                           type_processes == "end" ~ "End"))
+```
+
+```{r}
+microglia_movement_changes$`process count` <- microglia_movement_changes$`process count` %>% fct_relevel("Initial", "Init withdrawn", "New", "New withdrawn", "End")
+```
+
+```{r}
+pd <- position_dodge(0.2)
+
+ggplot(microglia_movement_changes, aes(x=`process count`, y=n_processes/time*60, group=cell_id, color=factor(cell_id)))+
+  geom_point(position=pd, stat='summary', fun.y=sum, size=4) +
+  stat_summary(position=pd, fun.y=mean, geom="line", size=1.25, alpha=1.0)+  #change fun.y to some cumulative sum
+  stat_summary( fun.y=mean, geom="line", size=2.5, color="black", group=1)+
+  scale_color_discrete_diverging(11, palette = "Blue Yellow 3", c1=100, h1=70, h2=285, l1=90, l2=68)+
+
+  #scale_color_continuous_sequential(11, palette = "BluYl", c1=100, c2=100)+
+  theme(axis.text.x = element_text(angle=37.5, hjust=1, vjust=1), legend.position = "none")+
+  labs(x=" ", y= "Number of processes")
+#ggsave('phago graphs 2-5-19/microglia-changeovertime.png', dpi=300, width=6, height=4.5)
+```
+
+

@@ -1,0 +1,119 @@
+---
+title: "Fig1-mpeg-mbpa-counts-4-5-8dpf"
+author: "alexandria hughes"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(colorspace)
+```
+
+```{r}
+theme_set(theme_cowplot(font_size =18))
+```
+
+4dpf mbpa images are a different size than the 5, 8 dpf images (512px at 4 and 800 at 5, 8). Multiplied all 5, 8 day counts by 0.6966 to make them the same area (the 512 frame is 3.5 hemisegs, the 800 is more than that and was reduced to the same region size).
+```{r}
+mpeg_mbpa_counts <- read_csv('cell-counts-mpeg-mbpa-tidy-adjustedframe.csv')
+
+```
+
+```{r}
+mpeg_mbpa_counts <- mpeg_mbpa_counts %>% mutate(d_v_ratio = dorsal/ventral) %>% mutate(total_cells = dorsal+ventral)
+#View(mpeg_mbpa_counts)
+```
+
+```{r}
+mpeg_mbpa_counts %>% group_by(age, fluor) %>% summarize(tot_cell_counted = sum(total_cells), tot_fish = n())
+```
+
+
+```{r}
+mpeg_only <- mpeg_mbpa_counts %>% filter(fluor == "mpeg1.1+")
+```
+
+```{r}
+ggplot(mpeg_mbpa_counts, aes(x=fluor, y=d_v_ratio, fill=fluor))+
+  geom_jitter(width=0.15, height=0.05, shape=21, alpha=0.8, size=4)+
+  geom_boxplot(alpha=0.5)+
+  scale_fill_manual(values = c("#FFC5FF", "#E3C22D"))+ 
+  facet_grid(.~age)+
+  labs(x= " ", y="dorsal / ventral ratio")+
+  scale_y_sqrt()+
+  theme(legend.position = "none")+
+  stat_compare_means(inherit.aes=FALSE, aes(x=fluor, y=d_v_ratio), method="wilcox.test", label="p.format", label.x=1.2, size=5)
+#ggsave('mpeg-mbp-dv-ratio-458.png', dpi=300, height=4.5, width=6.75)
+
+```
+
+```{r}
+ggplot(mpeg_only, aes(x=age, y=total_cells, fill=factor(total_cells)))+
+  geom_violin(aes(x=age, y=total_cells), fill = "#E3C22D", color= "#777777", size=1, alpha=0.5, linetype="longdash", scale="width", trim=FALSE, draw_quantiles = c(0.25, 0.5, 0.75))+
+  geom_jitter(width=0.2, height=0.15, shape=21, size=7, alpha=0.75)+
+  scale_fill_discrete_diverging(15, palette = "Blue Yellow 3", c1=100, h1=285, h2=285, l1=90, l2=68)+
+  labs(y="mpeg1.1+ cells / hemi-cord", x=" ")+
+  theme(legend.position = "none")+
+  stat_compare_means(method="wilcox.test", comparisons = list(c("4 dpf", "5 dpf"), c("5 dpf", "8 dpf"), c("4 dpf", "8 dpf")),  label.y=c(15, 16, 17), label="p.signif")
+```
+
+
+```{r}
+mpeg_only %>% group_by(age) %>% summarize(mean_cells = mean(total_cells))
+```
+
+```{r}
+mpeg_mbpa_counts_long <- mpeg_mbpa_counts %>% gather(location, location=dorsal, location=ventral)
+mpeg_long <- mpeg_mbpa_counts_long %>% filter(fluor == "mpeg1.1+")
+mbpa_long <- mpeg_mbpa_counts_long %>% filter(fluor == "mbpa+")
+```
+
+
+```{r, results="as is"}
+ggplot(mpeg_long, aes(x=location, y=value, fill=location))+
+  geom_jitter(width=0.15, height=0.15, shape=21, alpha=0.8, size=4)+
+  geom_boxplot(alpha=0.5)+
+  scale_fill_manual(values = c("#E3C22D", "#E3C22D"))+ 
+  facet_grid(.~age)+
+  labs(x= " ", y="mpeg1.1+ cells / hemi-cord")+
+  #scale_y_sqrt()+
+  theme(legend.position = "none")+
+  stat_compare_means(method="wilcox.test", label="p.format", label.x=1.2, label.y=10.5, size=5)
+#ggsave('mpeg-dv-458.png', dpi=300, width=6.75, height=4.5)
+  
+```
+
+```{r}
+ggplot(mbpa_long, aes(x=location, y=value, fill=location))+
+  geom_jitter(width=0.15, height=.15, shape=21, alpha=0.8, size=4)+
+  geom_boxplot(alpha=0.5)+
+  scale_fill_manual(values = c("#FFC5FF", "#FFC5FF"))+ 
+  facet_grid(.~age)+
+  labs(x= " ", y="mbpa+ cells / 3.5 hemisegments")+
+  #scale_y_sqrt()+
+  theme(legend.position = "none")+
+    stat_compare_means(method="wilcox.test", label="p.format", label.x=1.2, label.y=55, size=5)
+#ggsave('mbpa-dv-458.png', dpi=300, width=6.75, height=4.5)
+
+```
+
+
+
+```{r}
+ggplot(mpeg_long, aes(x=age, y=value, fill=location))+
+  geom_jitter(width=0.1, shape=21, alpha=0.8, size=4)+
+  geom_boxplot(alpha=0.5)+
+  scale_fill_manual(values = c("#CEA0F9", "#E3C22D"))+ 
+  facet_grid(.~location)+
+  labs(x= " ", y="number of cells")+
+  #scale_y_sqrt()+
+  theme(legend.position = "none")
+```
+
+
